@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Network Topology Challenge</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#17253b;background:#f2f6fc}*{box-sizing:border-box}body{margin:0;padding:18px}.app{max-width:760px;margin:auto;background:#fff;border:1px solid #dbe4ef;border-radius:18px;padding:24px;box-shadow:0 10px 30px #193b6210}h1{font-size:clamp(22px,4vw,30px);margin:0 0 5px}p{line-height:1.5}.sub{color:#586a80;margin:0 0 18px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.pill{border-radius:99px;background:#e9f1fc;color:#1b5594;padding:7px 12px;font-weight:700;font-size:14px}.progress{height:8px;background:#e8edf4;border-radius:20px;margin:15px 0;overflow:hidden}.progress>div{height:100%;background:#2e78c5;transition:width .25s}.diagram{background:#f8fbff;border:1px solid #e0e9f4;border-radius:14px;padding:10px;text-align:center}.diagram svg{width:100%;height:auto;max-height:270px}.legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;font-size:12px;color:#5c6c80;margin-top:5px}.dot{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:4px}.question{margin:16px 0 7px;font-size:16px;font-weight:750}.choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.choices.model{grid-template-columns:repeat(2,minmax(0,1fr))}button{font:inherit;cursor:pointer;border-radius:10px;padding:11px 10px;border:1.5px solid #cbd8e8;background:white;color:#1c3554;font-weight:650}button:hover:not(:disabled){background:#edf5ff;border-color:#619bd2}button.selected{background:#e2efff;border-color:#2c76bf;color:#16508d}button:disabled{cursor:default;opacity:.8}.primary{background:#2167ad;color:white;border-color:#2167ad;padding:12px 20px}.primary:hover:not(:disabled){background:#17518c;color:white}.primary:disabled{opacity:.45}.actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:17px;flex-wrap:wrap}.feedback{margin-top:14px;padding:12px;border-radius:10px;background:#eaf7ed;color:#20552d;font-size:14px}.feedback.bad{background:#fff1e9;color:#88441e}.muted{color:#66778a;font-size:13px}.hidden{display:none}#finish{text-align:center;padding:22px 5px}#finish strong{font-size:44px;color:#1f69b0}#finish p{max-width:520px;margin:12px auto 22px}@media(max-width:520px){body{padding:8px}.app{padding:15px}.choices{gap:5px}button{padding:10px 5px;font-size:13px}}
+</style>
+</head>
+<body>
+<main class="app">
+ <div class="top"><div><h1>🌐 Network Challenge</h1><p class="sub">Identify the topology AND the network model.</p></div><div class="pill" id="score">Score: 0 / 0</div></div>
+ <section id="game">
+  <div class="top"><b id="round">Round 1 of 12</b><span class="muted">2 points per round</span></div><div class="progress"><div id="bar"></div></div>
+  <div class="diagram"><div id="drawing"></div><div class="legend"><span><i class="dot" style="background:#4a8bc5"></i>End-user device</span><span><i class="dot" style="background:#f2ac4e"></i>Server</span><span><i class="dot" style="background:#79899e"></i>Switch / router</span></div></div>
+  <div class="question">1. What is the network topology?</div><div class="choices" id="topChoices"></div>
+  <div class="question">2. What is the network model?</div><div class="choices model" id="modelChoices"></div>
+  <div id="feedback" class="feedback hidden" role="status" aria-live="polite"></div>
+  <div class="actions"><span class="muted" id="hint">Choose one answer for each question.</span><button id="action" class="primary" disabled>Check Answers</button></div>
+ </section>
+ <section id="finish" class="hidden"><h2>Challenge Complete! 🎉</h2><strong id="finalScore"></strong><p id="finalMessage"></p><button id="restart" class="primary">Play Again ↻</button></section>
+</main>
+<script>
+(()=>{
+'use strict';
+const svgNS='http://www.w3.org/2000/svg';
+const topologies=['Star','Mesh','Hybrid'],models=['Client-Server','Peer-to-Peer'];
+const $=id=>document.getElementById(id);
+let rounds=[],index=0,score=0,selection={top:null,model:null},checked=false;
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function el(name,attrs={}){const n=document.createElementNS(svgNS,name);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,v);return n;}
+function line(svg,a,b,opts={}){svg.appendChild(el('line',{x1:a[0],y1:a[1],x2:b[0],y2:b[1],stroke:opts.color||'#a1b1c5','stroke-width':opts.width||2.5,'stroke-linecap':'round'}));}
+function label(svg,x,y,t,size=11){const n=el('text',{x,y,'text-anchor':'middle','font-size':size,fill:'#35465d','font-weight':'600'});n.textContent=t;svg.appendChild(n);}
+function node(svg,x,y,type,name,device='desktop'){
+ const color=type==='server'?'#f2ac4e':type==='switch'?'#79899e':'#4a8bc5';
+ svg.appendChild(el('rect',{x:x-19,y:y-16,width:38,height:32,rx:7,fill:color,stroke:'#ffffff','stroke-width':2}));
+ if(type==='switch'){
+   for(let i=-1;i<=1;i++)svg.appendChild(el('circle',{cx:x+i*9,cy:y,r:2,fill:'white'}));
+ }else if(type==='server'){
+   for(let i=-1;i<=1;i++)svg.appendChild(el('line',{x1:x-11,y1:y+i*7,x2:x+11,y2:y+i*7,stroke:'white','stroke-width':2}));
+ }else if(device==='phone'){
+   svg.appendChild(el('rect',{x:x-7,y:y-12,width:14,height:24,rx:3,fill:'none',stroke:'white','stroke-width':2}));
+   svg.appendChild(el('circle',{cx:x,cy:y+8,r:1.2,fill:'white'}));
+ }else if(device==='laptop'){
+   svg.appendChild(el('rect',{x:x-12,y:y-10,width:24,height:17,rx:2,fill:'none',stroke:'white','stroke-width':2}));
+   svg.appendChild(el('path',{d:`M${x-16} ${y+10}h32l-3 4h-26z`,fill:'none',stroke:'white','stroke-width':2,'stroke-linejoin':'round'}));
+ }else{
+   svg.appendChild(el('rect',{x:x-12,y:y-10,width:24,height:17,rx:1,fill:'none',stroke:'white','stroke-width':2}));
+   svg.appendChild(el('line',{x1:x,y1:y+7,x2:x,y2:y+12,stroke:'white','stroke-width':2}));
+   svg.appendChild(el('line',{x1:x-7,y1:y+12,x2:x+7,y2:y+12,stroke:'white','stroke-width':2}));
+ }
+ if(name)label(svg,x,y+29,name,10);
+}
+function deviceFor(i,variant){return ['desktop','laptop','phone'][(i+variant)%3];}
+function renderDiagram(top,model,variant){const svg=el('svg',{viewBox:'0 0 580 265',role:'img','aria-label':top+' topology using a '+model+' network model'});const cs=model==='Client-Server';
+ if(top==='Star'){
+  const c=[290,132],points=[[290,35],[115,70],[465,70],[135,215],[445,215]];
+  points.forEach(p=>line(svg,c,p));node(svg,...c,'switch','Switch');points.forEach((p,i)=>node(svg,...p,cs&&i===variant%5?'server':'computer',cs&&i===variant%5?'Server':'',deviceFor(i,variant)));
+ }else if(top==='Mesh'){
+  const points=[[290,38],[118,95],[462,95],[165,222],[415,222]];
+  // Every endpoint has multiple connections; full mesh for clear recognition.
+  for(let i=0;i<points.length;i++)for(let j=i+1;j<points.length;j++)line(svg,points[i],points[j],{width:1.8});
+  points.forEach((p,i)=>node(svg,...p,cs&&i===variant%5?'server':'computer',cs&&i===variant%5?'Server':'',deviceFor(i,variant)));
+ }else{
+  // Two star clusters with a triangle of interconnected switches (mesh backbone).
+  const switches=[[210,75],[370,75],[290,184]],leaves=[[80,40],[80,120],[500,40],[500,120],[215,245],[365,245]];
+  [[0,1],[1,2],[2,0]].forEach(([a,b])=>line(svg,switches[a],switches[b],{width:3}));
+  [0,0,1,1,2,2].forEach((j,i)=>line(svg,switches[j],leaves[i]));
+  switches.forEach((p,i)=>node(svg,...p,'switch','Switch '+(i+1)));
+  leaves.forEach((p,i)=>node(svg,...p,cs&&i===variant%6?'server':'computer',cs&&i===variant%6?'Server':'',deviceFor(i,variant)));
+ }
+ $('drawing').replaceChildren(svg);
+}
+function choices(id,options,key){const wrap=$(id);wrap.replaceChildren();options.forEach(v=>{const b=document.createElement('button');b.type='button';b.textContent=v;b.setAttribute('aria-pressed',selection[key]===v?'true':'false');if(selection[key]===v)b.classList.add('selected');b.disabled=checked;b.onclick=()=>{if(checked)return;selection[key]=v;choices(id,options,key);$('action').disabled=!(selection.top&&selection.model);};wrap.appendChild(b);});}
+function render(){checked=false;selection={top:null,model:null};const r=rounds[index];$('round').textContent=`Round ${index+1} of ${rounds.length}`;$('bar').style.width=`${100*index/rounds.length}%`;$('score').textContent=`Score: ${score} / ${index*2}`;renderDiagram(r.top,r.model,r.variant);choices('topChoices',topologies,'top');choices('modelChoices',models,'model');$('feedback').classList.add('hidden');$('hint').textContent='Choose one answer for each question.';$('action').textContent='Check Answers';$('action').disabled=true;}
+function check(){const r=rounds[index];let gained=0;if(selection.top===r.top)gained++;if(selection.model===r.model)gained++;score+=gained;checked=true;choices('topChoices',topologies,'top');choices('modelChoices',models,'model');const fb=$('feedback');fb.className='feedback'+(gained===2?'':' bad');const t=selection.top===r.top?'✓':'✗',m=selection.model===r.model?'✓':'✗';fb.textContent=`${t} Topology: ${r.top}. ${m} Model: ${r.model}. ${r.top==='Star'?'All endpoints connect through one central switch.':r.top==='Mesh'?'Nodes have multiple interconnections.':'Star clusters are joined by a mesh of switches.'} ${r.model==='Client-Server'?'A server provides services to clients.':'Peers can both request and provide services.'}`;$('score').textContent=`Score: ${score} / ${(index+1)*2}`;$('hint').textContent=`+${gained} point${gained===1?'':'s'} this round`;$('action').textContent=index===rounds.length-1?'See Results':'Next Round →';$('action').disabled=false;}
+function next(){if(!checked){check();return;}index++;if(index===rounds.length){$('game').classList.add('hidden');$('finish').classList.remove('hidden');$('finalScore').textContent=`${score} / ${rounds.length*2}`;$('finalMessage').textContent=score===24?'Perfect score! You can distinguish topology from network model.':score>=18?'Great work! Review the explanations for any missed questions.':'Keep practicing: topology is the connection pattern; model is the role of devices.';$('bar').style.width='100%';return;}render();}
+function start(){rounds=shuffle(topologies.flatMap(top=>models.flatMap(model=>[0,1].map(variant=>({top,model,variant:variant+Math.floor(Math.random()*6)})))));index=0;score=0;$('game').classList.remove('hidden');$('finish').classList.add('hidden');render();}
+$('action').addEventListener('click',next);$('restart').addEventListener('click',start);start();
+})();
+</script>
+</body>
+</html>
